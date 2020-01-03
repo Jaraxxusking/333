@@ -33,7 +33,7 @@ import json
 arch = 'res_101'  # res_18, res_101, hourglass
 heads = {'hm': 4, 'reg': 2, 'wh': 2}
 head_conv = 64  # 64 for resnets
-model_path = './exp/ctdet/coco_custom_res101_3classes/model_last.pth'
+model_path = './weights/ctdet_pascal_trafficlight_last.pth'
 mean = [0.408, 0.447, 0.470]  # coco and kitti not same
 std = [0.289, 0.274, 0.278]
 classes_names = ['tlt_red', 'tlt_green', 
@@ -208,17 +208,17 @@ def eval_folder(data_f, inferencer, categories=None):
         # print(dets)
         bnd_id = 0
         for det in dets:
-            category_id = det[0]
-            xmin = max(det[2], 0)
-            ymin = max(det[3], 0)
-            xmax = det[4]
-            ymax = det[5]
+            category_id = int(det[0])
+            xmin = round(float(max(det[2], 0)), 2)
+            ymin = round(float(max(det[3], 0)), 2)
+            xmax = round(float(det[4]), 2)
+            ymax = round(float(det[5]), 2)
             # print('{}, {}, {}, {}'.format(xmin, ymin, xmax, ymax))
             # assert(xmax > xmin)
             # assert(ymax > ymin)
-            o_width = abs(xmax - xmin)
-            o_height = abs(ymax - ymin)
-            ann = {'area': o_width*o_height, 'iscrowd': 0, 'image_id':
+            o_width = round(float(abs(xmax - xmin)), 2)
+            o_height = round(float(abs(ymax - ymin)), 2)
+            ann = {'area': round(o_width*o_height, 2), 'iscrowd': 0, 'image_id':
                    image_id, 'bbox':[xmin, ymin, o_width, o_height],
                    'category_id': category_id, 'id': bnd_id, 'ignore': 0,
                    'segmentation': []}
@@ -227,19 +227,89 @@ def eval_folder(data_f, inferencer, categories=None):
         # image_id plus 1
         i += 1
 
+        # if i == 10:
+            # break
+
     if categories:
         for cate, cid in categories.items():
             cat = {'supercategory': 'none', 'id': cid, 'name': cate}
             json_dict['categories'].append(cat)
-    if not json_file:
-        json_file = 'eval_result_coco.json'
-        logging.info('converted coco format will saved into: {}'.format(json_file))
+    json_file = 'eval_result_coco.json'
+    logging.info('converted coco format will saved into: {}'.format(json_file))
     json_fp = open(json_file, 'w')
+    # print(json_dict)
     json_str = json.dumps(json_dict)
     json_fp.write(json_str)
     json_fp.close()
     logging.info('done.')
 
+
+
+def eval_on_json(json_f, inferencer, img_root=None, categories=None):
+    """
+    Using json_f (eval annotations) to get images, and generates
+    all inferenced results
+    """
+    from pycocotools.coco import COCO
+    coco = COCO(json_f)
+    # get all image ids
+    all_img_ids = coco.getImgIds()
+
+    logging.info('eval on all {} images.'.format(len(all_img_ids)))
+    json_dict = {"images":[], "type": "instances", "annotations": [], "categories": []}
+    i = 0
+    for img_id in all_img_ids:
+        # get image filename by img_id
+        one_img = coco.loadImgs([img_id])[0]
+        filename = one_img['file_name']
+        img_f = os.path.join(img_root, filename)
+        print("Processing %s"%(img_f))
+        image_id = i
+        height, width = cv2.imread(img_f).shape[:-1]
+        image = {'file_name': filename, 'height': height, 'width': width,
+                 'id':image_id}
+        json_dict['images'].append(image)
+
+        # inference on image get dets
+        dets = inferencer.run_on_img_file(img_f)
+        # print(dets)
+        bnd_id = 0
+        for det in dets:
+            category_id = int(det[0])
+            xmin = round(float(max(det[2], 0)), 2)
+            ymin = round(float(max(det[3], 0)), 2)
+            xmax = round(float(det[4]), 2)
+            ymax = round(float(det[5]), 2)
+            # print('{}, {}, {}, {}'.format(xmin, ymin, xmax, ymax))
+            # assert(xmax > xmin)
+            # assert(ymax > ymin)
+            o_width = round(float(abs(xmax - xmin)), 2)
+            o_height = round(float(abs(ymax - ymin)), 2)
+            ann = {'area': round(o_width*o_height, 2), 'iscrowd': 0, 'image_id':
+                   image_id, 'bbox':[xmin, ymin, o_width, o_height],
+                   'category_id': category_id, 'id': bnd_id, 'ignore': 0,
+                   'segmentation': [], 'score': float(det[1])}
+            json_dict['annotations'].append(ann)
+            bnd_id = bnd_id + 1
+        # image_id plus 1
+        i += 1
+
+        # if i == 10:
+            # break
+
+    if categories:
+        for cate, cid in categories.items():
+            cat = {'supercategory': 'none', 'id': cid, 'name': cate}
+            json_dict['categories'].append(cat)
+    json_file = 'eval_result_coco.json'
+    logging.info('converted coco format will saved into: {}'.format(json_file))
+    json_fp = open(json_file, 'w')
+    # print(json_dict)
+    json_str = json.dumps(json_dict)
+    json_fp.write(json_str)
+    json_fp.close()
+    logging.info('done.')
+    return json_dict
 
 
 if __name__ == '__main__':
@@ -260,6 +330,22 @@ if __name__ == '__main__':
     elif os.path.isdir(data_f):
         # inference on folder to get final result
         eval_folder(data_f, detector)
+    elif '.json' in data_f:
+        img_root_folder = os.path.join(os.path.dirname(data_f), 'JPEGImages')
+        logging.info('inference on image root folder: {}'.format(img_root_folder))
+        logging.info('with json file: {}'.format(data_f))
+        coco_results = eval_on_json(data_f, detector, img_root=img_root_folder)
+        # print(coco_results)
+
+        # load json and inferenced, calculated mAP
+        from pycocotools.cocoeval import COCOeval
+        from pycocotools.coco import COCO
+        coco_gt = COCO(data_f)
+        coco_dt = coco_gt.loadRes(coco_results['annotations'])
+        coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
     else:
         res = detector.run(data_f)
         cv2.imshow('res', res)

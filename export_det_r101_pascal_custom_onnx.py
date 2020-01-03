@@ -1,11 +1,8 @@
 """
 
-trained a dataset on Pascal format
-and test the dataset performance
-
+exporting custom centernet model
 
 """
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -19,12 +16,18 @@ import torch
 from models.model import create_model, load_model
 from utils.image import get_affine_transform
 from models.decode import ctdet_decode
-from utils.post_process import ctdet_post_process2, ctdet_post_process
+from utils.post_process import ctdet_post_process2
 from external.nms import soft_nms
-from alfred.vis.image.det import visualize_det_cv2, visualize_det_cv2_style0
+from alfred.vis.image.det import visualize_det_cv2
 from alfred.vis.image.get_dataset_label_map import coco_label_map_list
 import time
+from torch.onnx import OperatorExportTypes
 
+
+"""
+DCN actually not support for onnx
+should using resnet
+"""
 
 arch = 'res_101'  # res_18, res_101, hourglass
 heads = {'hm': 4, 'reg': 2, 'wh': 2}
@@ -32,9 +35,8 @@ head_conv = 64  # 64 for resnets
 model_path = './weights/ctdet_pascal_trafficlight_last.pth'
 mean = [0.408, 0.447, 0.470]  # coco and kitti not same
 std = [0.289, 0.274, 0.278]
-classes_names = ['red', 'green', 
-                 'yellow', 'black']
-cls_colors = [(0, 0, 255), (0, 255, 0), (0, 255, 255), (96, 96, 96)]
+classes_names = ['tlt_red', 'tlt_green', 
+                 'tlt_yellow', 'tlt_black']
 num_classes = len(classes_names)
 test_scales = [1]
 pad = 31  # hourglass not same
@@ -48,10 +50,7 @@ class CenterNetDetector(object):
     def __init__(self):
         logging.info('Creating model...')
         self.model = create_model(arch, heads, head_conv)
-        if os.path.exists(model_path):
-            self.model = load_model(self.model, model_path)
-        else:
-            logging.info("skip load model since can not found model file.")
+        self.model = load_model(self.model, model_path)
         self.model = self.model.to(device)
         self.model.eval()
         logging.info('model loaded.')
@@ -73,6 +72,7 @@ class CenterNetDetector(object):
         height, width = image.shape[0:2]
         new_height = int(height * scale)
         new_width = int(width * scale)
+
         if self.input_shape != None:
             inp_height, inp_width = self.input_shape
             c = np.array([new_width / 2., new_height / 2.], dtype=np.float32)
@@ -101,10 +101,14 @@ class CenterNetDetector(object):
 
     def process(self, images, return_time=False):
         with torch.no_grad():
-            output = self.model(images)[-1]
-            hm = output['hm'].sigmoid_()
-            wh = output['wh']
-            reg = output['reg']
+            output = self.model(images)
+            # print('real output: {}'.format(output))
+            # print(len(output))
+            hm = output[0].sigmoid_()
+            # we want do maxpool inside hm, and do topk here
+            # so there will only be indcies, hms out, we have to fix K value to 100 here
+            wh = output[1]
+            reg = output[2]
             torch.cuda.synchronize()
             dets = ctdet_decode(hm, wh, reg=reg, K=self.K)
         return output, dets
@@ -153,25 +157,37 @@ class CenterNetDetector(object):
             dets = self.post_process(dets, meta, scale)
             torch.cuda.synchronize()
             detections.append(dets)
-        res = visualize_det_cv2_style0(image, detections[0], classes_names, cls_colors=cls_colors, thresh=0.25, suit_color=True)
+        res = visualize_det_cv2(image, detections[0], coco_label_map_list[1:], 0.3)
         cv2.putText(res, 'fps: {0:.4f}'.format(1/cost), (30, 30), cv2.FONT_HERSHEY_COMPLEX, 0.7,
          (0, 0, 255), 2)
         return res
 
+    def export_onnx(self, test_img_or_path, onnx_name):
+        if isinstance(test_img_or_path, np.ndarray):
+            image = test_img_or_path
+        elif type(test_img_or_path) == type(''):
+            image = cv2.imread(test_img_or_path)
 
-if __name__ == '__main__':
+        images, meta = self.pre_process(image, 1, None)
+        images = images.to(device)
+        print(images.shape)
+        torch.onnx.export(
+            self.model,
+            images,
+            onnx_name,
+            verbose=False,
+            input_names=['image'],
+            # output_names=['']
+            # operator_export_type=OperatorExportTypes.ONNX_ATEN
+            # operator_export_type=OperatorExportTypes.ONNX_ATEN
+        )
+
+
+if __name__ == "__main__":
     detector = CenterNetDetector()
-    data_f = 'images/33887522274_eebd074106_k.jpg'
+    data_f = 'images/camera_front_12mm_1568964320637824132.jpg'
     if len(sys.argv) > 1:
         data_f = sys.argv[1]
-    if 'mp4' in os.path.basename(data_f):
-        cam = cv2.VideoCapture(data_f)
-        while True:
-            _, img = cam.read()
-            res = detector.run(img)
-            cv2.imshow('centernet_video', res)
-            cv2.waitKey(1)
-    else:
-        res = detector.run(data_f)
-        cv2.imshow('res', res)
-        cv2.waitKey(0)
+    detector.export_onnx(data_f, './weights/centernet_r101_trafficlight.onnx')
+    # detector.run(data_f)
+    print('onnx exported!')
