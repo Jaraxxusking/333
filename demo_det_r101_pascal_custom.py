@@ -29,7 +29,8 @@ import time
 arch = 'res_101'  # res_18, res_101, hourglass
 heads = {'hm': 4, 'reg': 2, 'wh': 2}
 head_conv = 64  # 64 for resnets
-model_path = './weights/ctdet_pascal_trafficlight_last.pth'
+# model_path = './weights/ctdet_pascal_trafficlight_last.pth'
+model_path = './weights/pascal_trafficlight_last.pth'
 mean = [0.408, 0.447, 0.470]  # coco and kitti not same
 std = [0.289, 0.274, 0.278]
 classes_names = ['red', 'green', 
