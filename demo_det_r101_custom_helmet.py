@@ -31,8 +31,8 @@ head_conv = 64  # 64 for resnets
 model_path = './exp/ctdet/coco_helmet_r101/model_last.pth'
 mean = [0.408, 0.447, 0.470]  # coco and kitti not same
 std = [0.289, 0.274, 0.278]
-classes_names = ['hat', 'no_hat', 'dog']
-cls_colors = [(0, 255, 0), (0, 0, 255), (0, 255, 255)]
+classes_names = ['ok', 'no', 'dog']
+cls_colors = [(0, 255, 0), (255, 0, 255), (0, 255, 255)]
 num_classes = len(classes_names)
 test_scales = [1]
 pad = 31  # hourglass not same
@@ -164,11 +164,21 @@ if __name__ == '__main__':
         data_f = sys.argv[1]
     if 'mp4' in os.path.basename(data_f):
         cam = cv2.VideoCapture(data_f)
+        # shall we save video to local?
+        print('video size: {}x{}'.format(cam.get(3), cam.get(4)))
+        video_writer = cv2.VideoWriter('combined.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 
+        24, (int(cam.get(3)), int(cam.get(4))))
         while True:
             _, img = cam.read()
-            res = detector.run(img)
-            cv2.imshow('centernet_video', res)
-            cv2.waitKey(1)
+            if img is not None:
+                res = detector.run(img)
+                cv2.imshow('centernet_video', res)
+                cv2.waitKey(1)
+                video_writer.write(res)
+            else:
+                video_writer.release()
+                break
+        print('video saved.')
     else:
         res = detector.run(data_f)
         cv2.imshow('res', res)
