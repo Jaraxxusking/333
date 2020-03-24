@@ -110,6 +110,7 @@ class PoseResNet(nn.Module):
         self.inplanes = 64
         self.deconv_with_bias = False
         self.heads = heads
+        # heads: {'hm': 80, 'reg': 2, 'wh': 2}
 
         super(PoseResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -136,6 +137,7 @@ class PoseResNet(nn.Module):
 
         for head in sorted(self.heads):
           num_output = self.heads[head]
+          # 64 for resnets
           if head_conv > 0:
             fc = nn.Sequential(
                 nn.Conv2d(256, head_conv,
@@ -222,7 +224,6 @@ class PoseResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-
         x = self.deconv_layers(x)
         
         if self.onnx_mode:

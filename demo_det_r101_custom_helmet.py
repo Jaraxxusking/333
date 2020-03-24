@@ -31,8 +31,8 @@ head_conv = 64  # 64 for resnets
 model_path = './exp/ctdet/coco_helmet_r101/model_last.pth'
 mean = [0.408, 0.447, 0.470]  # coco and kitti not same
 std = [0.289, 0.274, 0.278]
-classes_names = ['ok', 'no', 'dog']
-cls_colors = [(0, 255, 0), (255, 0, 255), (0, 255, 255)]
+classes_names = ['hat', 'person', 'dog']
+cls_colors = [(255, 255, 0), (0, 0, 255), (0, 255, 255)]
 num_classes = len(classes_names)
 test_scales = [1]
 pad = 31  # hourglass not same
@@ -138,6 +138,9 @@ class CenterNetDetector(object):
             image = cv2.imread(image_or_path_or_tensor)
         detections = []
         cost = 0
+
+        all_dets = 0
+        hats = 0
         for scale in self.scales:
             images, meta = self.pre_process(image, scale, meta)
             images = images.to(device)
@@ -151,9 +154,10 @@ class CenterNetDetector(object):
             dets = self.post_process(dets, meta, scale)
             torch.cuda.synchronize()
             detections.append(dets)
-        res = visualize_det_cv2_style0(image, detections[0], classes_names, cls_colors=cls_colors, thresh=0.3, suit_color=True)
-        cv2.putText(res, 'fps: {0:.4f}'.format(1/cost), (30, 30), cv2.FONT_HERSHEY_COMPLEX, 0.7,
-         (0, 0, 255), 2)
+        res = visualize_det_cv2_style0(
+            image, detections[0], classes_names, cls_colors=cls_colors, suit_color=True, thresh=0.5, line_thickness=1, font_scale=0.4, counter_on=True, counter_pos=(30, 220))
+        cv2.putText(res, 'Runtime: {:.4f}s  FPS: {:.4f}'.format(cost, 1/cost), (30, 160), cv2.FONT_HERSHEY_COMPLEX, 1.7,
+                    (0, 0, 255), 2)
         return res
 
 
@@ -166,8 +170,8 @@ if __name__ == '__main__':
         cam = cv2.VideoCapture(data_f)
         # shall we save video to local?
         print('video size: {}x{}'.format(cam.get(3), cam.get(4)))
-        video_writer = cv2.VideoWriter('combined.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 
-        24, (int(cam.get(3)), int(cam.get(4))))
+        video_writer = cv2.VideoWriter('combined.mp4', cv2.VideoWriter_fourcc(*'DIVX'),
+                                       24, (int(cam.get(3)), int(cam.get(4))))
         while True:
             _, img = cam.read()
             if img is not None:
