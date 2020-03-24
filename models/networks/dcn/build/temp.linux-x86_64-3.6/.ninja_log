@@ -1,5 +1,0 @@
-# ninja log v5
-1	12147	1585033460950234300	/media/fagangjin/samsung/source/ai/swarm/manaai/centernet/models/networks/dcn/build/temp.linux-x86_64-3.6/src/deform_conv_cuda_kernel.o	6f4d721baf67be69
-1	16948	1585033465748382200	/media/fagangjin/samsung/source/ai/swarm/manaai/centernet/models/networks/dcn/build/temp.linux-x86_64-3.6/src/deform_conv_cuda.o	bb1d8b65a6b1297c
-1	12196	1585033479179786500	/media/fagangjin/samsung/source/ai/swarm/manaai/centernet/models/networks/dcn/build/temp.linux-x86_64-3.6/src/deform_pool_cuda_kernel.o	d5a7a46aef69209f
-1	14038	1585033481020803100	/media/fagangjin/samsung/source/ai/swarm/manaai/centernet/models/networks/dcn/build/temp.linux-x86_64-3.6/src/deform_pool_cuda.o	bdd503f9c18ed465
