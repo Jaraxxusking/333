@@ -29,6 +29,7 @@ DCN actually not support for onnx
 should using resnet
 """
 
+
 arch = 'res_101'  # res_18, res_101, hourglass
 heads = {'hm': 80, 'reg': 2, 'wh': 2}
 head_conv = 64  # 64 for resnets
