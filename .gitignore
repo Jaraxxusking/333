@@ -6,3 +6,12 @@ centernet_r101_coco.onnx
 *.onnx
 *.json
 combined.mp4
+weights/
+exp/
+centernet_dla.onnx 
+centernet_r101_coco.onnx
+*.onnx*.json
+*.onnx
+*.json
+combined.mp4
+*.mp4
