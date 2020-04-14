@@ -14,7 +14,7 @@ python3 main.py ctdet --exp_id coco_helmet_r101 \
 --dataset coco_custom_helmet \
 --arch res_101 \
 --batch_size 4 \
---num_epochs 900 \
+--num_epochs 1200 \
 --master_batch 5 \
 --val_intervals -1 \
 --lr 3.75e-4 \

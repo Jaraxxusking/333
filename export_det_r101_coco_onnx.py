@@ -169,6 +169,8 @@ class CenterNetDetector(object):
         images, meta = self.pre_process(image, 1, None)
         images = images.to(device)
         print(images.shape)
+        oo = self.model(images)
+        print(oo)
         torch.onnx.export(
             self.model,
             images,

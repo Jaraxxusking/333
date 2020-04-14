@@ -6,3 +6,4 @@ centernet_r101_coco.onnx
 *.onnx
 *.json
 combined.mp4
+*.mp4
