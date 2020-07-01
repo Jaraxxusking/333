@@ -16,7 +16,8 @@ import logging
 import torch
 import torch.nn as nn
 # from .DCNv2.dcn_v2 import DCN
-from .dcn.modules.deform_conv import ModulatedDeformConvPack as DCN
+# from .dcn.modules.deform_conv import ModulatedDeformConvPack as DCN
+from torchvision.ops.deform_conv import DeformConv2d as DCN
 
 import torch.utils.model_zoo as model_zoo
 
